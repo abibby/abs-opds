@@ -1,0 +1,10 @@
+.git
+.agents
+.aws
+.codex
+.env
+.env.*
+!.env.example
+abs-opds
+*.test
+coverage*

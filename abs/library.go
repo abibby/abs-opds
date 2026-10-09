@@ -1,6 +1,10 @@
 package abs
 
-import "gosalusa.com/option"
+import (
+	"context"
+	"gosalusa.com/option"
+	"net/url"
+)
 
 type Library struct {
 	ID           string          `json:"id"`
@@ -34,5 +38,13 @@ type GetAllLibrariesResponse struct {
 }
 
 func (c *Client) GetAllLibraries() (*GetAllLibrariesResponse, error) {
-	return c.get[GetAllLibrariesResponse]("/libraries")
+	return c.GetLibraries(context.Background())
+}
+
+func (c *Client) GetLibraries(ctx context.Context) (*GetAllLibrariesResponse, error) {
+	return get[GetAllLibrariesResponse](ctx, c, "/libraries")
+}
+
+func (c *Client) GetLibrary(ctx context.Context, id string) (*Library, error) {
+	return get[Library](ctx, c, "/libraries/"+url.PathEscape(id))
 }

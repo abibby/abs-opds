@@ -1,0 +1,27 @@
+services:
+  abs-opds:
+    build: .
+    restart: unless-stopped
+    environment:
+      ABS_URL: ${ABS_URL:?Set ABS_URL in .env}
+      ABS_API_KEY: ${ABS_API_KEY:?Set ABS_API_KEY in .env}
+      ABS_LIBRARY_ID: ${ABS_LIBRARY_ID:?Set ABS_LIBRARY_ID in .env}
+      LISTEN_ADDR: ":12665"
+      OPDS_USERNAME: ${OPDS_USERNAME:-}
+      OPDS_PASSWORD: ${OPDS_PASSWORD:-}
+    expose:
+      - "12665"
+
+  opds-proxy:
+    image: docker.io/evanbuss/opds-proxy:latest
+    restart: unless-stopped
+    depends_on:
+      - abs-opds
+    environment:
+      OPDS__PORT: "8080"
+      OPDS__FEEDS__0__NAME: Audiobookshelf
+      OPDS__FEEDS__0__URL: http://abs-opds:12665/opds
+      OPDS__FEEDS__0__AUTH__USERNAME: ${OPDS_USERNAME:-}
+      OPDS__FEEDS__0__AUTH__PASSWORD: ${OPDS_PASSWORD:-}
+    ports:
+      - "${OPDS_PROXY_PORT:-8080}:8080"
