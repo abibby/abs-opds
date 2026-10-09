@@ -22,7 +22,7 @@ func TestSeriesNavigation(t *testing.T) {
 	}
 	series := parseFeed(t, request(h, seriesLink.Href+"?limit=1"))
 	if *series.TotalResults != 2 || len(series.Entries) != 1 || series.Entries[0].Title != "Another series" {
-		t.Fatalf("series must be deduplicated, EPUB-only, and alphabetical: %+v", series)
+		t.Fatalf("series must preserve the upstream page and order: %+v", series)
 	}
 	next := findLink(t, series.Links, "next")
 	if next.Type != NavigationType {

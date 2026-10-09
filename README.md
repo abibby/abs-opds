@@ -69,10 +69,6 @@ Compose fixes the internal OPDS listening port at 12665.
 started by this file; use its reachable hostname or LAN address, or connect
 abs-opds to its existing Docker network.
 
-If `OPDS_USERNAME` and `OPDS_PASSWORD` are set, Compose supplies them to both
-services automatically. These authenticate the connection between opds-proxy
-and abs-opds; they do not protect the opds-proxy web interface.
-
 ```sh
 docker compose down
 ```
@@ -88,21 +84,9 @@ feeds:
     url: http://abs-opds:12665/opds
 ```
 
-For optional HTTP Basic authentication, set both `OPDS_USERNAME` and
-`OPDS_PASSWORD` in abs-opds and add matching credentials to the proxy feed:
-
-```yaml
-feeds:
-  - name: Audiobookshelf
-    url: http://abs-opds:12665/opds
-    auth:
-      username: reader
-      password: change-me
-```
-
-Without these settings, everyone able to reach abs-opds can browse and download
-books available to its API key. Use a private network or authenticated HTTPS
-reverse proxy as appropriate. Mount abs-opds at the host root; feed links use
+The server does not implement authentication. Everyone able to reach abs-opds
+can browse and download books available to its API key. Use a private network or
+authenticated HTTPS reverse proxy as appropriate. Mount abs-opds at the host root; feed links use
 root-relative `/opds/...` paths.
 
 ## Catalog

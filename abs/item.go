@@ -1,16 +1,16 @@
 package abs
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
-	"encoding/json/v2"
 	"fmt"
 	"net/http"
 	"net/url"
 	"path"
 	"strconv"
 	"strings"
+
+	"gosalusa.com/jsonio"
 )
 
 type Item struct {
@@ -137,15 +137,15 @@ func (c *Client) GetLibraryItems(ctx context.Context, libraryID string, options 
 		query.Set("sort", "addedAt")
 		query.Set("desc", "1")
 	}
-	return get[ItemsResponse](ctx, c, "/libraries/"+url.PathEscape(libraryID)+"/items?"+query.Encode())
+	return c.get[ItemsResponse](ctx, "/libraries/"+url.PathEscape(libraryID)+"/items?"+query.Encode())
 }
 
 func (c *Client) GetLibraryAuthors(ctx context.Context, libraryID string, page, limit int) (*Page[Author], error) {
-	return get[Page[Author]](ctx, c, "/libraries/"+url.PathEscape(libraryID)+"/authors?"+pageQuery(page, limit, "name").Encode())
+	return c.get[Page[Author]](ctx, "/libraries/"+url.PathEscape(libraryID)+"/authors?"+pageQuery(page, limit, "name").Encode())
 }
 
 func (c *Client) GetLibrarySeries(ctx context.Context, libraryID string, page, limit int) (*Page[Series], error) {
-	return get[Page[Series]](ctx, c, "/libraries/"+url.PathEscape(libraryID)+"/series?"+pageQuery(page, limit, "name").Encode())
+	return c.get[Page[Series]](ctx, "/libraries/"+url.PathEscape(libraryID)+"/series?"+pageQuery(page, limit, "name").Encode())
 }
 
 type SearchResponse struct {
@@ -158,25 +158,27 @@ type SearchResponse struct {
 // offset or total count. Results already contain expanded item metadata.
 func (c *Client) SearchLibrary(ctx context.Context, libraryID, terms string, limit int) (*SearchResponse, error) {
 	query := url.Values{"q": {terms}, "limit": {strconv.Itoa(limit)}}
-	return get[SearchResponse](ctx, c, "/libraries/"+url.PathEscape(libraryID)+"/search?"+query.Encode())
+	return c.get[SearchResponse](ctx, "/libraries/"+url.PathEscape(libraryID)+"/search?"+query.Encode())
 }
 
 func (c *Client) GetItem(ctx context.Context, id string) (*Item, error) {
-	return get[Item](ctx, c, "/items/"+url.PathEscape(id))
+	return c.get[Item](ctx, "/items/"+url.PathEscape(id))
+}
+
+type GetItemsResponse struct {
+	Items []Item `json:"libraryItems"`
+}
+type getItemsRequest struct {
+	IDs []string `json:"libraryItemIds"`
 }
 
 // GetItems reads full metadata, including supplementary files omitted by the
 // library listing endpoint. Audiobookshelf's batch/get endpoint is read-only.
 func (c *Client) GetItems(ctx context.Context, ids []string) ([]Item, error) {
-	data, err := json.Marshal(struct {
-		IDs []string `json:"libraryItemIds"`
-	}{ids})
-	if err != nil {
-		return nil, err
+	if len(ids) == 0 {
+		return []Item{}, nil
 	}
-	result, err := post[struct {
-		Items []Item `json:"libraryItems"`
-	}](ctx, c, "/items/batch/get", bytes.NewReader(data))
+	result, err := c.post[GetItemsResponse](ctx, "/items/batch/get", jsonio.NewReader(getItemsRequest{ids}))
 	if err != nil {
 		return nil, err
 	}

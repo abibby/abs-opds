@@ -74,6 +74,7 @@ func TestLibraryIsolation(t *testing.T) {
 		}
 	}
 	for _, target := range []string{
+		"/opds?library=two", "/opds/?library=two",
 		"/opds/books?library=two", "/opds/search?library=two", "/opds/series?library=two", "/opds/authors?library=two",
 		"/opds/items/foreign-book/files/42/book.epub", "/opds/items/foreign-book/cover", "/opds/items/foreign-book/cover?thumbnail=1",
 	} {

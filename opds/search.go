@@ -11,6 +11,10 @@ import (
 
 func (s *Server) search(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
+	if q.Get("author") != "" || q.Get("series") != "" || q.Get("sort") != "" {
+		http.Error(w, "Audiobookshelf search does not support author, series, or sort filters", http.StatusBadRequest)
+		return
+	}
 	query := strings.TrimSpace(q.Get("query"))
 	page, limit, err := pagination(q)
 	if err != nil {
@@ -23,31 +27,30 @@ func (s *Server) search(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
-	if err := s.validateLibrary(ctx, q.Get("library")); err != nil {
+	if _, err := s.library(ctx, q.Get("library")); err != nil {
 		upstreamError(w, err)
 		return
 	}
-	var result *abs.SearchResponse
+	var result abs.SearchResponse
 	if query != "" {
-		result, err = s.client.SearchLibrary(ctx, s.libraryID, query, limit)
+		matches, err := s.client.SearchLibrary(ctx, s.libraryID, query, limit)
 		if err != nil {
 			upstreamError(w, err)
 			return
 		}
+		result = *matches
 	}
 	f := newFeed("Search: "+query, r.URL.RequestURI(), AcquisitionType)
 	f.Links = append(f.Links, Link{Rel: "up", Type: NavigationType, Href: "/opds"})
 	// The API provides neither a total nor a continuation cursor for search.
 	f.ItemsPerPage = limit
 
-	if result != nil {
-		for _, match := range result.Books {
-			item := match.Item
-			if item.LibraryID != s.libraryID || len(item.EPUBs()) == 0 {
-				continue
-			}
-			f.Entries = append(f.Entries, bookEntry(item))
+	for _, match := range result.Books {
+		item := match.Item
+		if item.LibraryID != s.libraryID || len(item.EPUBs()) == 0 {
+			continue
 		}
+		f.Entries = append(f.Entries, bookEntry(item))
 	}
 	writeFeed(w, r, f, AcquisitionType)
 }

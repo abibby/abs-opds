@@ -32,15 +32,15 @@ func New(uri, key string) *Client {
 	}
 }
 
-func get[T any](ctx context.Context, c *Client, path string) (*T, error) {
-	return requestJSON[T](ctx, c, http.MethodGet, path, nil)
+func (c *Client) get[T any](ctx context.Context, path string) (*T, error) {
+	return c.requestJSON[T](ctx, http.MethodGet, path, nil)
 }
 
-func post[T any](ctx context.Context, c *Client, path string, body io.Reader) (*T, error) {
-	return requestJSON[T](ctx, c, http.MethodPost, path, body)
+func (c *Client) post[T any](ctx context.Context, path string, body io.Reader) (*T, error) {
+	return c.requestJSON[T](ctx, http.MethodPost, path, body)
 }
 
-func requestJSON[T any](ctx context.Context, c *Client, method, path string, body io.Reader) (*T, error) {
+func (c *Client) requestJSON[T any](ctx context.Context, method, path string, body io.Reader) (*T, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, method, c.url+path, body)

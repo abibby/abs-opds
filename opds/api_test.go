@@ -111,9 +111,70 @@ func TestUnsupportedAPIFilters(t *testing.T) {
 	h := New(abs.New(upstream.URL, "key"), "lib")
 	for _, target := range []string{
 		"/opds/books?author=a&series=s", "/opds/search?query=q&author=a", "/opds/search?query=q&series=s", "/opds/search?query=q&sort=recent", "/opds/search?query=q&page=2",
+		"/opds/books?query=q&author=a", "/opds/books?query=q&series=s", "/opds/books?query=q&sort=recent", "/opds/books?query=q&page=2",
 	} {
 		if w := request(h, target); w.Code != 400 {
 			t.Errorf("%s returned %d", target, w.Code)
 		}
+	}
+}
+
+func TestBookPageBatchResults(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		ids        []string
+		batchError bool
+		wantStatus int
+		wantBooks  int
+	}{
+		{name: "empty page", wantStatus: http.StatusOK},
+		{name: "missing and foreign records", ids: []string{"missing", "foreign", "book"}, wantStatus: http.StatusOK, wantBooks: 1},
+		{name: "batch failure", ids: []string{"book"}, batchError: true, wantStatus: http.StatusBadGateway},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			batchCalls := 0
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/api/libraries/lib":
+					_ = json.MarshalWrite(w, abs.Library{ID: "lib", MediaType: "book"})
+				case "/api/libraries/lib/items":
+					page := abs.ItemsResponse{Total: len(tc.ids)}
+					for _, id := range tc.ids {
+						page.Results = append(page.Results, abs.ItemSummary{ID: id})
+					}
+					_ = json.MarshalWrite(w, page)
+				case "/api/items/batch/get":
+					batchCalls++
+					if tc.batchError {
+						http.Error(w, "private upstream details", http.StatusInternalServerError)
+						return
+					}
+					book := abs.Item{ID: "book", LibraryID: "lib", MediaType: "book", Media: abs.Book{EbookFile: &abs.File{Ino: "42", EbookFormat: "epub"}}}
+					foreign := book
+					foreign.ID, foreign.LibraryID = "foreign", "other-library"
+					_ = json.MarshalWrite(w, map[string]any{"libraryItems": []abs.Item{book, foreign}})
+				default:
+					t.Errorf("unexpected upstream request: %s", r.URL)
+					http.NotFound(w, r)
+				}
+			}))
+			defer upstream.Close()
+			w := request(New(abs.New(upstream.URL, "key"), "lib"), "/opds/books")
+			if w.Code != tc.wantStatus {
+				t.Fatalf("got HTTP %d, want %d: %s", w.Code, tc.wantStatus, w.Body.String())
+			}
+			if want := min(1, len(tc.ids)); batchCalls != want {
+				t.Fatalf("got %d batch calls, want %d", batchCalls, want)
+			}
+			if tc.wantStatus == http.StatusOK {
+				feed := parseFeed(t, w)
+				if len(feed.Entries) != tc.wantBooks || *feed.TotalResults != len(tc.ids) {
+					t.Fatalf("unexpected book page: %+v", feed)
+				}
+				if tc.wantBooks > 0 && feed.Entries[0].ID != "urn:abs:item:book" {
+					t.Fatalf("unexpected book: %+v", feed.Entries[0])
+				}
+			}
+		})
 	}
 }

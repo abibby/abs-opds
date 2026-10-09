@@ -22,7 +22,7 @@ func TestAuthorsNavigation(t *testing.T) {
 	}
 	first := parseFeed(t, request(h, authorsLink.Href+"?limit=2"))
 	if *first.TotalResults != 3 || len(first.Entries) != 2 || first.Entries[0].Title != "Jane & John" || first.Entries[1].Title != "Other Author" {
-		t.Fatalf("authors must be alphabetical, deduplicated, and EPUB-only: %+v", first)
+		t.Fatalf("authors must preserve the upstream page and order: %+v", first)
 	}
 	booksLink := findLink(t, first.Entries[0].Links, "subsection")
 	if booksLink.Type != AcquisitionType {
