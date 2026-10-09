@@ -50,6 +50,22 @@ on the same Docker network, use its service name, such as
 The image runs as a non-root user and includes CA certificates for HTTPS
 connections. Credentials are passed at runtime and excluded from the build context.
 
+### GitHub Container Registry
+
+The `Publish Docker image` workflow builds Linux AMD64 and ARM64 images and
+publishes them to `ghcr.io/<owner>/<repository>`. Pushes to `main` update `latest`;
+Git tags matching `v*` publish the same image tag (for example, `v1.2.3`). Every
+build also publishes a `sha-<short-commit>` tag. The workflow can be run manually
+from GitHub Actions; only runs on `main` update `latest`.
+
+Publishing uses the built-in `GITHUB_TOKEN` with `packages: write` permission;
+no additional registry secret is needed. To run a published image, replace
+`<owner>/<repository>` with your lowercase GitHub repository path:
+
+```sh
+docker run --rm --name abs-opds --env-file .env -p 12665:12665 ghcr.io/<owner>/<repository>:latest
+```
+
 ## Docker Compose
 
 The included `compose.yaml` builds abs-opds and starts opds-proxy with the
@@ -130,6 +146,9 @@ timeout. This implements the feed conventions needed by opds-proxy, rather than
 all Calibre catalog categories or its search query language.
 
 ## Development
+
+The `Go tests` workflow runs the following checks on pushes, pull requests, and
+manual runs, using the Go version declared in `go.mod`:
 
 ```sh
 go test -race ./...
